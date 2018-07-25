@@ -55,11 +55,12 @@ TR_Debug::printJ9JITExceptionTableDetails(J9JITExceptionTable *data, J9JITExcept
       trfprintf(_file, "J9JITExceptionTable [%p]\n", data);
    trfprintf(_file, "CP=[%p], slots=[%p], NumExcpRanges=[%p], size=[%p]\n",
                data->constantPool, data->slots, data->numExcptionRanges, data->size);
-   trfprintf(_file, "startPC=     [%p]\n", data->startPC);
-   trfprintf(_file, "endWarmPC=   [%p]\n",data->endWarmPC);
-   trfprintf(_file, "startColdPC= [%p]\n",data->startColdPC);
-   trfprintf(_file, "endPC=       [%p]\n",data->endPC);
-   trfprintf(_file, "hotness=     [%d]\n",data->hotness);
+   trfprintf(_file, "startPC          = [%p]\n", data->startPC);
+   trfprintf(_file, "endWarmPC        = [%p]\n",data->endWarmPC);
+   trfprintf(_file, "startColdPC      = [%p]\n",data->startColdPC);
+   trfprintf(_file, "endPC            = [%p]\n",data->endPC);
+   trfprintf(_file, "SEH table offset = [%x]\n",data->debugSlot2);
+   trfprintf(_file, "hotness          = [%d]\n",data->hotness);
    trfprintf(_file, "scalarTempSlots=%d, objectTempSlots=%d\n", data->scalarTempSlots, data->objectTempSlots);
    trfprintf(_file, "prologuePushes=%d, tempOffset=%d\n", data->prologuePushes, data->tempOffset);
    trfprintf(_file, "registerSaveDescription=[%p]\n", data->registerSaveDescription);

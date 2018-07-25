@@ -1442,6 +1442,7 @@ createMethodMetaData(
    data->endPC = (UDATA)comp->cg()->getCodeEnd();
    data->startColdPC = (UDATA)0;
    data->endWarmPC = data->endPC;
+   data->debugSlot2 = (void*)(uintptrj_t)comp->cg()->getStructuredExceptionHandlerTableOffset();
    data->codeCacheAlloc = (UDATA)comp->cg()->getBinaryBufferStart();
 
    data->flags = 0;

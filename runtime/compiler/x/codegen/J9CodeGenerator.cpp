@@ -130,6 +130,12 @@ J9::X86::CodeGenerator::CodeGenerator() :
    //
    cg->setSupportsJavaFloatSemantics();
 
+   // Enable Structured Exception Handling
+   static auto disableSEH = feGetEnv("TR_DisableSEH");
+   if (cg->getHasResumableTrapHandler() && !disableSEH)
+      {
+      cg->setSupportsStructuredExceptionHandling();
+      }
    /*
     * "Statically" initialize the FE-specific tree evaluator functions.
     * This code only needs to execute once per JIT lifetime.

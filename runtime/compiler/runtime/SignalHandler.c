@@ -23,6 +23,7 @@
 #include "j9protos.h"
 #include "j9cfg.h"
 #include <assert.h>
+#include "runtime/StructuredExceptionHandling.hpp"
 
 #if defined(TR_TARGET_S390) && defined(LINUX)
 #define FPE_DECDATA 86
@@ -360,27 +361,42 @@ UDATA jitX86Handler(J9VMThread* vmThread, U_32 sigType, void* sigInfo)
 				break;
 
 			case J9PORT_SIG_FLAG_SIGBUS:
-			case J9PORT_SIG_FLAG_SIGSEGV:
+                stackMap = jitConfig->jitGetStackMapFromPC(vmThread->javaVM, exceptionTable, (UDATA)(eip + 1));
+                if (stackMap) {
+                    registerMap = jitConfig->getJitRegisterMap(exceptionTable, stackMap);
+                    *espPtr += (((registerMap >> 16) & 0xFF) * sizeof(UDATA));
+                }
+                vmThread->jitException = (J9Object *)((UDATA)eip + 1);
+                *eipPtr = (UDATA)(void*)jitHandleInternalErrorTrap;
+                ((J9VMJITRegisterState*)vmThread->entryLocalStorage->jitGlobalStorageBase)->jit_ebp = (UDATA)*ebpPtr;
+                *ebpPtr = (UDATA)vmThread;
+                return J9PORT_SIG_EXCEPTION_CONTINUE_EXECUTION;
 
+			case J9PORT_SIG_FLAG_SIGSEGV:
 				infoType = j9sig_info(sigInfo, J9PORT_SIG_SIGNAL, J9PORT_SIG_SIGNAL_INACCESSIBLE_ADDRESS, &infoName, &infoValue);
-				if (sigType == J9PORT_SIG_FLAG_SIGSEGV && infoType == J9PORT_SIG_VALUE_ADDRESS) {
+				if (infoType == J9PORT_SIG_VALUE_ADDRESS) {
 					if ( *(UDATA*)infoValue > 0xFFFF ) {
-						/* we know where the fault occurred, and it wasn't within the first page. This is an unexpected error */
+                        if (exceptionTable->debugSlot2) {
+                            UDATA pc = lookupStructuredExceptionHandlerTable(exceptionTable->startPC, (U_32)(UDATA)exceptionTable->debugSlot2, *eipPtr);
+                            if (pc) {
+                                *eipPtr = pc;
+                                return J9PORT_SIG_EXCEPTION_CONTINUE_EXECUTION;
+                            }
+                        }
+						/* we know where the fault occurred, and it wasn't within the first page; however there isn't an entry inside SEH table. */
+                        /* This is an unexpected error */
 						break;
 					}
 				}
-
 				stackMap = jitConfig->jitGetStackMapFromPC(vmThread->javaVM, exceptionTable, (UDATA) (eip + 1));
-				if (stackMap ) {
+				if (stackMap) {
 					registerMap = jitConfig->getJitRegisterMap(exceptionTable, stackMap);
 					*espPtr += (((registerMap >> 16) & 0xFF) * sizeof(UDATA));
 				}
-
 				vmThread->jitException = (J9Object *) ((UDATA) eip + 1);
 				*eipPtr = (UDATA)(void*)(sigType == J9PORT_SIG_FLAG_SIGSEGV ? jitHandleNullPointerExceptionTrap : jitHandleInternalErrorTrap);
 				((J9VMJITRegisterState*)vmThread->entryLocalStorage->jitGlobalStorageBase)->jit_ebp = (UDATA) *ebpPtr;
 				*ebpPtr = (UDATA) vmThread;
-
 				return J9PORT_SIG_EXCEPTION_CONTINUE_EXECUTION;
 
 			case J9PORT_SIG_FLAG_SIGILL:
@@ -1825,10 +1841,22 @@ UDATA jitAMD64Handler(J9VMThread* vmThread, U_32 sigType, void *sigInfo)
 				break;
 #endif
 			case J9PORT_SIG_FLAG_SIGBUS:
-			case J9PORT_SIG_FLAG_SIGSEGV:
+				vmThread->jitException = (J9Object *)((UDATA)rip + 1);
+				*ripPtr = (U_64)(void*)jitHandleInternalErrorTrap;
+				((J9VMJITRegisterState*)vmThread->entryLocalStorage->jitGlobalStorageBase)->jit_rbp = (UDATA)*rbpPtr;
+				*rbpPtr = (U_64)vmThread;
+				return J9PORT_SIG_EXCEPTION_CONTINUE_EXECUTION;
 
+			case J9PORT_SIG_FLAG_SIGSEGV:
+                if (exceptionTable->debugSlot2) {
+                    UDATA pc = lookupStructuredExceptionHandlerTable(exceptionTable->startPC, (U_32)(UDATA)exceptionTable->debugSlot2, *ripPtr);
+                    if (pc) {
+                        *ripPtr = pc;
+                        return J9PORT_SIG_EXCEPTION_CONTINUE_EXECUTION;
+                    }
+                }
 				vmThread->jitException = (J9Object *) ((UDATA) rip + 1);
-				*ripPtr = (U_64)(void*)(sigType == J9PORT_SIG_FLAG_SIGSEGV ? jitHandleNullPointerExceptionTrap : jitHandleInternalErrorTrap);
+				*ripPtr = (U_64)(void*)jitHandleNullPointerExceptionTrap;
 				((J9VMJITRegisterState*)vmThread->entryLocalStorage->jitGlobalStorageBase)->jit_rbp = (UDATA) *rbpPtr;
 				*rbpPtr = (U_64) vmThread;
 				return J9PORT_SIG_EXCEPTION_CONTINUE_EXECUTION;
