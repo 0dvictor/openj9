@@ -9254,6 +9254,25 @@ inlineMathSQRT(
 // jl serial_loop
 //
 // end_label
+// Vectorized String.hashCode()
+// String.hashCode(str) = sum
+/**
+ * \brief vectorized string hashcode calculation
+ *
+ * \param node        : the call node of String.hashCodeImpl
+ * \param isCompressed: whether the underlying string is compressed
+ * \param cg          : the code generator
+ *
+ *
+ * There are the following steps in the generated assembly code:
+ *   1. preparation (load value into register, calculate length etc)
+ *   2. vectorized case conversion loop
+ *   3. handle residue with non vectorized case conversion loop
+ *   4. handle invalid case
+ *
+ *
+ * This version does not support discontiguous arrays
+ */
 static TR::Register* inlineStringHashCode(TR::Node* node, bool isCompressed, TR::CodeGenerator* cg)
    {
    if (!cg->getSupportsInlineStringHashCode())
